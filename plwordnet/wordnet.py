@@ -1,3 +1,7 @@
+import lzma
+import gzip
+import pickle
+
 from lxml import etree
 from dataclasses import dataclass
 from collections import defaultdict
@@ -73,8 +77,8 @@ class Wordnet:
         self.synset_relations_p = defaultdict(set)
         self.lexical_units_by_name = defaultdict(set)
 
-    def load(self, source):
-        tree = etree.parse(source)
+    def load(self, file):
+        tree = etree.parse(file)
         root = tree.getroot()
 
         for e in root.iter('synsetrelations'):
@@ -174,6 +178,12 @@ class Wordnet:
     def lemmas(self, x: str):
         return [self.lexical_units[id] for id in self.lexical_units_by_name[x]]
 
+    def dump(self, dst):
+        if not isinstance(dst, str):
+            pickle.dump(self, dst)
+        with open(dst, 'wb') as f:
+            pickle.dump(self, f)
+
     def __repr__(self):
         props = 'lexical_units synsets relation_types synset_relations lexical_relations'.split()
         res = 'PlWordnet'
@@ -186,8 +196,27 @@ class Wordnet:
     __str__ = __repr__
 
 
-def load(source):
-    wn = Wordnet() 
-    wn.load(source)
+def load(src):
+    wn = Wordnet()
+    if not isinstance(src, str):
+        wn.load(src)
+        return wn
+
+    file = None
+    if src.endswith('.xz'):
+        file = lzma.open(src, 'rb')
+        src = src[:-3]
+    elif src.endswith('.gz'):
+        file = gzip.open(src, 'rb')
+        src = src[:-3]
+    else:
+        file = open(src, 'rb')
+
+    if src.endswith('.pkl'):
+        wn = pickle.load(file)
+    else:
+        wn.load(file)
+
+    file.close()
     return wn
 

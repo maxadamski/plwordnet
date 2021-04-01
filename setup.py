@@ -7,7 +7,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name='plwordnet',
-    version='0.1.1',
+    version='0.1.2',
     description='Library for using the Polish Wordnet in the plwnxml format',
     long_description=README,
     long_description_content_type='text/markdown',
