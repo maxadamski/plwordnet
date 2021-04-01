@@ -1,4 +1,3 @@
-from sys import getsizeof as sizeof
 from lxml import etree
 from dataclasses import dataclass
 from collections import defaultdict
