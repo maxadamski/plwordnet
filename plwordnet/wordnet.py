@@ -110,7 +110,7 @@ class Wordnet:
             a = dict(e.attrib)
             id = int(a['id'])
             self.synsets[id] = Synset(
-                id=id, split=int(a['split']), abstract=bool(a['abstract']),
+                id=id, split=int(a['split']), abstract=a['abstract']=="true",
                 definition=a.get('definition', ''), description=a.get('desc', ''),
                 lexical_unit_ids=[int(x.text) for x in e.findall('unit-id')],
                 lexical_units=[])
@@ -159,16 +159,27 @@ class Wordnet:
     def synset_relations_where(self, *, subject=None, predicate=None, object=None):
         if subject is None and predicate is None and object is None:
             raise Exception('must specify at least subject, predicate or object')
-        found = set(range(len(self.synset_relations)))
+        found = None
+
         if predicate is not None:
             id = predicate.id if isinstance(predicate, RelationType) else predicate
-            found = found.intersection(self.synset_relations_p[id])
+            if found is None:
+                found = self.synset_relations_p[id]
+            else:
+                found = found.intersection(self.synset_relations_p[id])
         if subject is not None:
             id = subject.id if isinstance(subject, Synset) else subject
-            found = found.intersection(self.synset_relations_s[id])
+
+            if found is None:
+                found = self.synset_relations_s[id]
+            else:
+                found = found.intersection(self.synset_relations_s[id])
         if object is not None:
             id = object.id if isinstance(object, Synset) else object
-            found = found.intersection(self.synset_relations_o[id])
+            if found is None:
+                found = self.synset_relations_o[id]
+            else:
+                found = found.intersection(self.synset_relations_o[id])
         results = []
         for id in found:
             s, p, o = self.synset_relations[id]
