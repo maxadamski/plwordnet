@@ -21,11 +21,13 @@ class RelationType:
     reverse: Optional[int]
     autoreverse: bool
 
-    def format(self, x, y, short=False):
+    def format(self, subject, object, short=False):
         if short or not self.display:
-            return f'{x} {self.shortcut} {y}'
+            return f'{subject} {self.shortcut} {object}'
+        elif '<x#>' in self.display and '<y#>' in self.display:
+            return self.display.replace('<x#>', str(subject)).replace('<y#>', str(object))
         else:
-            return self.display.replace('<x#>', str(x)).replace('<y#>', str(y))
+            return f'{subject} {self.display} {object}'
 
 
 @dataclass
@@ -140,56 +142,42 @@ class Wordnet:
     def lexical_relations_where(self, *, subject=None, predicate=None, object=None):
         if subject is None and predicate is None and object is None:
             raise Exception('must specify at least subject, predicate or object')
-        found = set()
+        found = None
         if predicate is not None:
+            assert isinstance(predicate, (int, RelationType)), 'Argument `predicate` must be an int or a RelationType'
             id = predicate.id if isinstance(predicate, RelationType) else predicate
-            if not found:
-                found = self.lexical_relations_p[id]
-            else:
-                found = found.intersection(self.lexical_relations_p[id])
+            found = _intersection(found, self.lexical_relations_p[id])
         if subject is not None:
+            assert isinstance(subject, (int, LexicalUnit)), 'Argument `subject` must be an int or a LexicalUnit'
             id = subject.id if isinstance(subject, LexicalUnit) else subject
-            if not found:
-                found = self.lexical_relations_s[id]
-            else:
-                found = found.intersection(self.lexical_relations_s[id])
+            found = _intersection(found, self.lexical_relations_s[id])
         if object is not None:
+            assert isinstance(object, (int, LexicalUnit)), 'Argument `object` must be an int or a LexicalUnit'
             id = object.id if isinstance(object, LexicalUnit) else object
-
-            if not found:
-                found = self.lexical_relations_o[id]
-            else:
-                found = found.intersection(self.lexical_relations_o[id])
+            found = _intersection(found, self.lexical_relations_o[id])
         results = []
         for id in found:
             s, p, o = self.lexical_relations[id]
             results.append((self.lexical_units[s], self.relation_types[p], self.lexical_units[o]))
         return results
 
+
     def synset_relations_where(self, *, subject=None, predicate=None, object=None):
         if subject is None and predicate is None and object is None:
             raise Exception('must specify at least subject, predicate or object')
-        found = set()
-
+        found = None
         if predicate is not None:
+            assert isinstance(predicate, (int, RelationType)), 'Argument `predicate` must be an int or a RelationType'
             id = predicate.id if isinstance(predicate, RelationType) else predicate
-            if not found:
-                found = self.synset_relations_p[id]
-            else:
-                found = found.intersection(self.synset_relations_p[id])
+            found = _intersection(found, self.synset_relations_p[id])
         if subject is not None:
+            assert isinstance(subject, (int, Synset)), 'Argument `subject` must be an int or a Synset'
             id = subject.id if isinstance(subject, Synset) else subject
-
-            if not found:
-                found = self.synset_relations_s[id]
-            else:
-                found = found.intersection(self.synset_relations_s[id])
+            found = _intersection(found, self.synset_relations_s[id])
         if object is not None:
+            assert isinstance(object, (int, Synset)), 'Argument `object` must be an int or a Synset'
             id = object.id if isinstance(object, Synset) else object
-            if not found:
-                found = self.synset_relations_o[id]
-            else:
-                found = found.intersection(self.synset_relations_o[id])
+            found = _intersection(found, self.synset_relations_o[id])
         results = []
         for id in found:
             s, p, o = self.synset_relations[id]
@@ -240,4 +228,10 @@ def load(src):
 
     file.close()
     return wn
+
+
+def _intersection(x, y):
+    if x is None: return y
+    if y is None: return x
+    return x.intersection(y)
 
