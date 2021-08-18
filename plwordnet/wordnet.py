@@ -8,6 +8,55 @@ from collections import defaultdict
 from typing import List, Set, Optional
 
 
+DOMAINS = {
+    "bhp": {"name": "the highest in the hierarchy", "pos": "noun"},
+    "cech": {"name": "attribute", "pos": "noun"},
+    "cel": {"name": "motive", "pos": "noun"},
+    "czas": {"name": "time", "pos": "noun"},
+    "czc": {"name": "body", "pos": "noun"},
+    "czuj": {"name": "emotion", "pos": "noun"},
+    "czy": {"name": "act", "pos": "noun"},
+    "grp": {"name": "group", "pos": "noun"},
+    "il": {"name": "quantity", "pos": "noun"},
+    "jedz": {"name": "food", "pos": "noun"},
+    "ksz": {"name": "shape", "pos": "noun"},
+    "msc": {"name": "location", "pos": "noun"},
+    "os": {"name": "person", "pos": "noun"},
+    "por": {"name": "communication", "pos": "noun"},
+    "pos": {"name": "possession", "pos": "noun"},
+    "prc": {"name": "process", "pos": "noun"},
+    "rsl": {"name": "plant", "pos": "noun"},
+    "rz": {"name": "natural object", "pos": "noun"},
+    "sbst": {"name": "substance", "pos": "noun"},
+    "st": {"name": "state", "pos": "noun"},
+    "sys": {"name": "classification", "pos": "noun"},
+    "umy": {"name": "cognition", "pos": "noun"},
+    "wytw": {"name": "artefact", "pos": "noun"},
+    "zdarz": {"name": "event", "pos": "noun"},
+    "zj": {"name": "natural phenomenon", "pos": "noun"},
+    "zw": {"name": "animal", "pos": "noun"},
+    "cczuj": {"name": "emotion", "pos": "verb"},
+    "cjedz": {"name": "consumption", "pos": "verb"},
+    "cpor": {"name": "communication", "pos": "verb"},
+    "cpos": {"name": "possession", "pos": "verb"},
+    "cst": {"name": "state", "pos": "verb"},
+    "cumy": {"name": "cognition", "pos": "verb"},
+    "cwytw": {"name": "creation", "pos": "verb"},
+    "dtk": {"name": "contact", "pos": "verb"},
+    "hig": {"name": "body", "pos": "verb"},
+    "pog": {"name": "weather", "pos": "verb"},
+    "pst": {"name": "perception", "pos": "verb"},
+    "ruch": {"name": "motion", "pos": "verb"},
+    "sp": {"name": "social", "pos": "verb"},
+    "wal": {"name": "competition", "pos": "verb"},
+    "zmn": {"name": "change", "pos": "verb"},
+    "grad": {"name": "deadjectival", "pos": "adj"},
+    "jak": {"name": "quality", "pos": "adj"},
+    "odcz": {"name": "deverbal", "pos": "adj"},
+    "rel": {"name": "relation", "pos": "adj"},
+}
+
+
 @dataclass
 class RelationType:
     id: int
