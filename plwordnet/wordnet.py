@@ -1,5 +1,6 @@
 import lzma
 import gzip
+import bz2
 import pickle
 
 from lxml import etree
@@ -214,6 +215,9 @@ def load(src):
     file = None
     if src.endswith('.xz'):
         file = lzma.open(src, 'rb')
+        src = src[:-3]
+    if src.endswith('.bz2'):
+        file = bz2.open(src, 'rb')
         src = src[:-3]
     elif src.endswith('.gz'):
         file = gzip.open(src, 'rb')
