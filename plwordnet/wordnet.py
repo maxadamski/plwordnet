@@ -6,7 +6,33 @@ from lxml import etree
 from dataclasses import dataclass
 from collections import defaultdict
 from typing import List, Set, Optional
+import unicodedata
+import re
 
+def deaccent(text):
+    """
+    Remove accentuation from the given string. Input text is either a unicode string or utf8 encoded bytestring.
+
+    Return input string with accents removed, as unicode.
+    
+
+    >>> deaccent("Šéf chomutovských komunistů dostal poštou bílý prášek")
+    u'Sef chomutovskych komunistu dostal postou bily prasek'
+    
+    Taken and adapted from https://gist.github.com/roopalgarg/933a01d3dbf1cbb7f3c7a067413a39ba
+    """
+    
+    norm = unicodedata.normalize("NFD", text)
+    result = ''.join(ch for ch in norm if unicodedata.category(ch) != 'Mn')
+    return unicodedata.normalize("NFC", result)
+
+
+def slugify(text):
+    s = deaccent(text).upper().replace("Ł", "L")
+    for c in " -()|":
+        s = s.replace(c, "_")
+    
+    return re.sub(r"_+", "_", s)
 
 @dataclass
 class RelationType:
@@ -96,10 +122,13 @@ class Wordnet:
             id = int(a['id'])
             parent = int(a['parent']) if 'parent' in a else None
             reverse = int(a['reverse']) if 'reverse' in a else None
-            self.relation_types[id] = RelationType(
+            rt = RelationType(
                 id=id, parent=parent, type=a['type'], name=a['name'], pos=a['posstr'].split(','),
                 description=a['description'], shortcut=a['shortcut'], display=a['display'],
                 autoreverse=bool(a['autoreverse']), reverse=reverse)
+
+            self.relation_types[id] = rt
+            self.__setattr__("REL_" + slugify(rt.name), rt)
 
         for e in root.iter('lexical-unit'):
             a = dict(e.attrib)
