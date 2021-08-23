@@ -52,7 +52,9 @@ class LexicalUnit:
     synset_id: Optional[int]
     synset: list
     name: str
+    _pos: str
     pos: str
+    language: str
     domain: str
     description: str
     variant: int
@@ -64,6 +66,12 @@ class LexicalUnit:
 
     
 class Wordnet:
+    pos_mapping = {
+        "rzeczownik": "NOUN",
+        "przymiotnik": "ADJ",
+        "przysłówek": "ADV",
+        "czasownik": "VERB",
+    }
     def __init__(self):
         self.lexical_units = {}
         self.synsets = {}
@@ -104,9 +112,20 @@ class Wordnet:
         for e in root.iter('lexical-unit'):
             a = dict(e.attrib)
             id = int(a['id'])
+
+            pos_parts = a["pos"].split(" ")
+            pos = None
+            language = "pl"
+            for pos_part in pos_parts:
+                if pos_part in self.pos_mapping:
+                    pos = self.pos_mapping[pos_part]
+
+                if pos_part == "pwn":
+                    language = "en"
+
             self.lexical_units[id] = LexicalUnit(
                 id=id, synset_id=None, synset=None, variant=int(a['variant']), tag_count=int(a['tagcount']),
-                name=a['name'], pos=a['pos'], domain=a['domain'], description=a['desc'])
+                name=a['name'], _pos=a['pos'], pos=pos, language=language, domain=a['domain'], description=a['desc'])
 
         for e in root.iter('synset'):
             a = dict(e.attrib)
