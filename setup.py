@@ -27,6 +27,6 @@ setup(
     include_package_data=True,
     python_requires='>=3.7',
     setup_requires=['pip', 'setuptools', 'wheel'],
-    install_requires=['lxml'],
+    install_requires=[],
 )
 
