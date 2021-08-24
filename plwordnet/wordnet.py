@@ -9,37 +9,33 @@ from dataclasses import dataclass
 from collections import defaultdict
 from typing import List, Set, Optional
 
+from . import display as show
+
 
 TEXT_ERRORS = re.compile(r'(brak danych|AOds|2A|\n)(; )?')
 
-POS_MAPPING = {
-    "rzeczownik": "NOUN",
-    "przymiotnik": "ADJ",
-    "przysłówek": "ADV",
-    "czasownik": "VERB",
-}
 
 POLARITY_MAPPING = {
-    '- s': -2,
-    '- m': -1,
-    'amb': 0,
-    '+ m': 1,
-    '+ s': 2,
+    '- s': -2, # negatywny silny
+    '- m': -1, # negatywny mały
+    'amb': 0, # ambiwalentny
+    '+ m': 1, # pozytywny mały
+    '+ s': 2, # pozytywny silny
 }
 
 
 @dataclass
 class RelationType:
     id: int
-    parent: Optional[int]
-    inverse: Optional[int]
     name: str
     type: str
     description: str
     shortcut: str
     display: str
-    pos: List[str]
     autoreverse: bool
+    pos: List[str]
+    parent: Optional['RelationType']
+    inverse: Optional['RelationType']
 
     def format(self, subject, object, short=False):
         if short or not self.display:
@@ -60,37 +56,58 @@ class EmotionalAnnotation:
 
 
 @dataclass
+class Description:
+    __slots__ = 'qualifier definition examples links unparsed from_synset'.split()
+    qualifier: str
+    definition: str
+    examples: list
+    links: list
+    unparsed: str
+    from_synset: bool
+
+
+@dataclass
 class Synset:
     __slots__ = 'id lexical_units split definition description abstract'.split()
     id: int
-    lexical_units: list
-    split: int
     definition: str
-    description: str
+    split: int
     abstract: bool
+    description: str
+    lexical_units: List['LexicalUnit']
     #workstate: str
 
-    def __str__(self):
-        return '{' + ' '.join(str(x) for x in self.lexical_units) + '}'
+    def __str__(self, max_items=None):
+        lus = self.lexical_units
+        rest = ''
+        if max_items is not None:
+            lus = lus[:max_items]
+            if max_items < len(self.lexical_units):
+                rest = ' ...'
+        return '{' + ' '.join(str(x) for x in lus) + rest + '}'
 
 
 @dataclass
 class LexicalUnit:
-    __slots__ = 'id synset name pos language domain description variant tag_count sentiment'.split()
+    __slots__ = 'id synset name pos language domain description rich_description variant tag_count sentiment'.split()
     id: int
-    synset: Synset
     name: str
+    variant: int
     pos: str # NOTE: all LUs in a synset are the same part of speech
     language: str
     domain: str
-    description: str
-    variant: int
     tag_count: int
+    description: str
+    rich_description: Optional[Description]
     sentiment: List[EmotionalAnnotation]
+    synset: Synset
     #workstate: str
 
     def __str__(self):
         return f'{self.name}.{self.variant}'
+
+    def _repr_html_(self):
+        return show.lexical_unit_html(self)
 
 
 class Wordnet:
@@ -101,6 +118,8 @@ class Wordnet:
         self.synset_relations = []
         self.lexical_relations = []
         self.sentiment_count = 0
+        self.description_count = 0
+        self.description_errors = 0
 
         self.lexical_relations_s = defaultdict(set)
         self.lexical_relations_o = defaultdict(set)
@@ -111,7 +130,7 @@ class Wordnet:
         self.lexical_units_by_name = defaultdict(list)
         self.relation_by_name = dict()
 
-    def load(self, file, sentiment_file=None, *, clean=True):
+    def load(self, file, sentiment_file=None, *, clean=True, full_parse=False):
         assert hasattr(file, 'read'), 'Argument `file` must be an opened PLWN .xml file'
         sentiment = defaultdict(list)
 
@@ -122,8 +141,8 @@ class Wordnet:
             assert len(head) == 9, f'Expected sentiment annotation CSV to have 9 colums, but got {len(head)}'
             for lemma, variant, pos, charged, emotions, valuations, polarity, example1, example2 in rows:
                 polarity = POLARITY_MAPPING.get(polarity, None)
-                emotions = emotions.strip(';').split(';') if emotions != 'NULL' else []
-                valuations = valuations.strip(';').split(';') if valuations != 'NULL' else []
+                emotions = emotions.strip(';').split(';') if emotions and emotions != 'NULL' else []
+                valuations = valuations.strip(';').split(';') if valuations and valuations != 'NULL' else []
                 examples = []
                 if example1 and example1 != 'NULL': examples.append(example1)
                 if example2 and example2 != 'NULL': examples.append(example2)
@@ -150,16 +169,16 @@ class Wordnet:
             self.relation_types[id] = self.relation_by_name[name] = RelationType(
                 id=id, parent=parent, name=name, type=a['type'], pos=a['posstr'].split(','),
                 description=a['description'], shortcut=a['shortcut'], display=a['display'],
-                autoreverse=bool(a['autoreverse']), inverse=inverse)
+                autoreverse=a['autoreverse'] == 'true', inverse=inverse)
 
         for e in root.iter('lexical-unit'):
             a = dict(e.attrib)
             id, variant, name, pos, lang = int(a['id']), int(a['variant']), a['name'], a['pos'], 'pl'
-            if pos.endswith(' pwn'): pos, lang = pos[:-4], 'en'
+            if pos.endswith(' pwn'): lang = 'en'
             self.lexical_units[id] = LexicalUnit(
                 id=id, synset=None, name=name, variant=variant, tag_count=int(a['tagcount']),
-                pos=POS_MAPPING[pos], language=lang, domain=a['domain'], description=a['desc'],
-                sentiment=sentiment[(name, variant)])
+                pos=pos, language=lang, domain=a['domain'], description=a['desc'],
+                sentiment=sentiment[(name, variant)], rich_description=None)
 
         for e in root.iter('synset'):
             a = dict(e.attrib)
@@ -189,10 +208,16 @@ class Wordnet:
                 self.lexical_units[lu.id].synset = synset
 
         for lu in self.lexical_units.values():
-            self.lexical_units_by_name[lu.name].append(lu.id)
+            self.lexical_units_by_name[lu.name.lower()].append(lu.id)
 
-        if clean:
-            self.clean()
+        for rel in self.relation_types.values():
+            if rel.parent is not None:
+                rel.parent = self.relation_types[rel.parent]
+            if rel.inverse is not None:
+                rel.inverse = self.relation_types[rel.inverse]
+
+        if clean: self.clean()
+        if full_parse: self.parse_descriptions()
 
     def clean(self):
         # remove most common bad text values
@@ -207,6 +232,23 @@ class Wordnet:
                 empty_synsets.append(x.id)
         for id in empty_synsets:
             del self.synsets[id]
+
+    def parse_descriptions(self):
+        for lu in self.lexical_units.values():
+            if not lu.description:
+                error, descr = _synset_rich_description(lu.synset)
+                if descr is None: continue
+                descr.from_synset = True
+                lu.rich_description = descr
+            else:
+                error, lu.rich_description = parse_description(lu.description)
+                self.description_count += 1
+                if not error: continue
+                error, descr = _synset_rich_description(lu.synset)
+                if error: self.description_errors += 1
+                if descr is None or error: continue
+                descr.from_synset = True
+                lu.rich_description = descr
 
     def lexical_relations_where(self, *, subject=None, predicate=None, object=None):
         if subject is None and predicate is None and object is None:
@@ -230,7 +272,6 @@ class Wordnet:
             results.append((self.lexical_units[s], self.relation_types[p], self.lexical_units[o]))
         return results
 
-
     def synset_relations_where(self, *, subject=None, predicate=None, object=None):
         if subject is None and predicate is None and object is None:
             raise Exception('must specify at least subject, predicate or object')
@@ -253,8 +294,28 @@ class Wordnet:
             results.append((self.synsets[s], self.relation_types[p], self.synsets[o]))
         return results
 
-    def lemmas(self, x: str):
-        return [self.lexical_units[id] for id in self.lexical_units_by_name[x]]
+    def show_relations(self, obj):
+        res = ''
+        if isinstance(obj, LexicalUnit):
+            res += 'LEXICAL RELATIONS\n'
+            res += show.lexical_relations(self, obj)
+            res += '\nSYNSET RELATIONS\n'
+            res += show.synset_relations(self, obj.synset)
+        if isinstance(obj, Synset):
+            res += 'SYNSET RELATIONS\n'
+            res += show.synset_relations(self, obj)
+        return res
+
+    def find(self, x: str):
+        name, variant = x, None
+        parts = name.rsplit('.', 1)
+        if len(parts) == 2:
+            name, variant = parts[0], int(parts[1])
+        lus = [self.lexical_units[id] for id in self.lexical_units_by_name[name.lower()]]
+        if variant is None:
+            return lus
+        lus = [lu for lu in lus if lu.variant == variant]
+        return lus[0] if lus else None
 
     def dump(self, dst):
         if not isinstance(dst, str):
@@ -264,18 +325,21 @@ class Wordnet:
 
     def __repr__(self):
         props = 'lexical_units synsets relation_types synset_relations lexical_relations'.split()
-        res = 'PlWordnet'
+        res = 'Słowosieć'
         for name in props:
             disp = name.replace('_', ' ')
             prop = getattr(self, name)
             res += f'\n  {disp}: {len(prop)}'
         res += f'\n  emotional annotations: {self.sentiment_count}'
+        res += f'\n  rich descriptions: {self.description_count}'
+        if self.description_errors:
+            res += f'\n  malformed descriptions: {self.description_errors}'
         return res
 
     __str__ = __repr__
 
 
-def load(wordnet_src, sentiment_src=None):
+def load(wordnet_src, sentiment_src=None, **kwargs):
     wn_file = wordnet_src
     if isinstance(wn_file, str):
         wn_file, wordnet_src = _smartopen(wn_file, 'rb')
@@ -292,7 +356,7 @@ def load(wordnet_src, sentiment_src=None):
         sent_file, _ = _smartopen(sent_file, 'rt')
 
     wn = Wordnet()
-    wn.load(wn_file, sent_file)
+    wn.load(wn_file, sent_file, **kwargs)
     wn_file.close()
     if sent_file is not None: sent_file.close()
     return wn
@@ -321,4 +385,66 @@ def _intersection(x, y):
     if x is None: return y
     if y is None: return x
     return x.intersection(y)
+
+
+def _synset_rich_description(synset):
+    if synset.definition:
+        error, descr = parse_description(synset.definition)
+        if not error: return error, descr
+    if synset.description:
+        error, descr = parse_description(synset.description)
+        if not error: return error, descr
+    return False, None
+
+
+def parse_description(text):
+    res, examples, links, unparsed = dict(), [], [], []
+    i, n, error = 0, len(text), False
+    while i < n:
+        char = text[i]
+        if char == '#' and i+2 < n and text[i+2] == 'A':
+            # TODO(max): merge emotional annotations
+            i += 6
+            while i < n and text[i] != '{': i += 1
+            while i < n and text[i] != '}': i += 1
+            while i < n and text[i] != '[': i += 1
+            while i < n and text[i] != ']': i += 1
+            while i < n and text[i] == ' ': i += 1
+            while i < n and text[i] != '[': i += 1
+            while i < n and text[i] != ']': i += 1
+            i += 1
+        elif char == '<':
+            # TODO(max): find out what these tags do
+            j = text.find('>', i)
+            if j == -1: j = n
+            i = j + 1
+        elif char == '#' and i+2 < n:
+            marker = text[i+2]
+            i += 4
+            chars = []
+            while i < n and text[i] not in '[{#':
+                chars.append(text[i])
+                i += 1
+            res[marker] = ''.join(chars).strip(': ')
+        elif char == '[' and text[i:i+3] == '[##':
+            i += 5
+            j = text.find(']', i)
+            if j == -1: j = n
+            examples.append(text[i:j].strip(': '))
+            i = j + 1
+        elif char == '{' and text[i:i+3] == '{##':
+            i += 5
+            j = text.find('}', i)
+            if j == -1: j = n
+            links.append(text[i:j].strip())
+            i = j + 1
+        elif text[i:i+2] == 'NP':
+            i += 2
+        else:
+            unparsed.append(text[i])
+            i += 1
+            if char != ' ':
+                error = True
+    return error, Description(qualifier=res.get('K', None), definition=res.get('D', ''),
+                       examples=examples, links=links, unparsed=''.join(unparsed),from_synset=False)
 
