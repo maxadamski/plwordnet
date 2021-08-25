@@ -10,6 +10,7 @@ from collections import defaultdict
 from typing import List, Set, Optional
 
 from . import display as show
+from .display import POS_STR
 
 
 TEXT_ERRORS = re.compile(r'(brak danych|AOds|2A|\n)(; )?')
@@ -89,11 +90,12 @@ class Synset:
 
 @dataclass
 class LexicalUnit:
-    __slots__ = 'id synset name pos language domain description rich_description variant tag_count sentiment'.split()
+    __slots__ = 'id synset name pos_pl pos language domain description rich_description variant tag_count sentiment'.split()
     id: int
     name: str
     variant: int
-    pos: str # NOTE: all LUs in a synset are the same part of speech
+    pos_pl: str # NOTE: all LUs in a synset are the same part of speech
+    pos: str
     language: str
     domain: str
     tag_count: int
@@ -177,7 +179,7 @@ class Wordnet:
             if pos.endswith(' pwn'): lang = 'en'
             self.lexical_units[id] = LexicalUnit(
                 id=id, synset=None, name=name, variant=variant, tag_count=int(a['tagcount']),
-                pos=pos, language=lang, domain=a['domain'], description=a['desc'],
+                pos_pl=pos, pos=POS_STR[pos], language=lang, domain=a['domain'], description=a['desc'],
                 sentiment=sentiment[(name, variant)], rich_description=None)
 
         for e in root.iter('synset'):

@@ -23,7 +23,7 @@ POS_STR = {
 def lexical_unit_html(lu):
     res = '<style>th, td { text-align: left !important; }</style>'
     res += f'<table width=500><colgroup><col span="1" style="width: 20%;"><col span="1" style="width: 80%"></colgroup>'
-    res += f'<thead><tr><th>#{lu.id}</th><td>{POS_STR[lu.pos]} {lu.language.upper()} {lu.name} {lu.variant}</td></tr></thead>'
+    res += f'<thead><tr><th>#{lu.id}</th><td>{lu.pos} {lu.language.upper()} {lu.name} {lu.variant}</td></tr></thead>'
     if lu.rich_description is not None and lu.rich_description.definition:
         res += f'<tr><th>DEFINITION</th><td>{lu.rich_description.definition}</td></tr>'
     elif lu.description:
