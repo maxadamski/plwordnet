@@ -366,6 +366,9 @@ def _smartopen(src, mode):
     if src.endswith('.xz'):
         file = lzma.open(src, mode)
         src = src[:-3]
+    if src.endswith('.bz2'):
+        file = bz2.open(src, 'rb')
+        src = src[:-3]
     elif src.endswith('.gz'):
         file = gzip.open(src, mode)
         src = src[:-3]
