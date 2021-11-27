@@ -426,20 +426,32 @@ class Wordnet:
 
         return res
 
-    def hypernym_paths(self, synset, full_searh=False, interlingual=False):
+    def hypernym_paths(self, synset, full_search=False, interlingual=False, seen=None):
         # TODO: should we rename full_search to greedy and negate the condition below?
+        # None at the end of the path means that we ran into the loop while searching for the hyperonym
+        
+        if seen is None:
+            seen = [synset.id]
+        else:
+            seen = seen.copy()
+            seen.append(synset.id)
         res = []
+
         for hypernym in self.hypernyms(synset=synset, interlingual=interlingual):
-            pathes = self.hypernym_paths(synset=hypernym, full_searh=full_searh, interlingual=interlingual)
+            if hypernym.id in seen:
+                res.append([None])
+                continue
+
+            pathes = self.hypernym_paths(synset=hypernym, full_search=full_search, interlingual=interlingual, seen=seen)
             for pth in pathes:
                 res.append(
                     [hypernym] + pth
                 )
-            
+
             if not pathes:
                 res.append([hypernym])
 
-            if not full_searh:
+            if not full_search:
                 break
 
         return res
