@@ -218,6 +218,11 @@ class Wordnet:
             if rel.inverse is not None:
                 rel.inverse = self.relation_types[rel.inverse]
 
+        # For cases like Instance_Hypernym/Instance_Hyponym
+        for rel in self.relation_types.values():
+            if rel.inverse is not None and rel.inverse.inverse is None:
+                rel.inverse.inverse = rel
+
         if clean: self.clean()
         if full_parse: self.parse_descriptions()
 
@@ -318,6 +323,76 @@ class Wordnet:
             return lus
         lus = [lu for lu in lus if lu.variant == variant]
         return lus[0] if lus else None
+
+    def _get_hypernym_relations(self, interlingual=False):
+        assert self.relation_by_name, 'You should load the file first'
+
+        hypernym_rels = [
+            self.relation_by_name['hiperonimia'],
+            self.relation_by_name['egzemplarz'],
+            self.relation_by_name['Hypernym'],
+            self.relation_by_name['Instance_Hypernym'],
+        ]
+
+        interlingual_hypernym_rels = [
+            self.relation_by_name['hiperonimia_międzyjęzykowa'],
+            self.relation_by_name['Hiper_plWN-PWN'],
+            self.relation_by_name['Hiper_PWN-plWN'],
+        ]
+
+        if not interlingual:
+            return hypernym_rels
+        else:
+            return hypernym_rels + interlingual_hypernym_rels
+
+    def _get_hyponym_relations(self, interlingual=False):
+        return [rel.inverse for rel in self._get_hypernym_relations(interlingual) if rel]
+
+    def hypernyms(self, synset, interlingual=False):
+        assert synset is not None
+        res = []
+        for rel in self._get_hypernym_relations(interlingual):
+            for s, _, _ in self.synset_relations_where(predicate=rel, object=synset):
+                res.append(s)
+
+        return res
+
+    def hyponyms(self, synset, interlingual=False):
+        assert synset is not None
+        res = []
+        for rel in self._get_hyponym_relations(interlingual):
+            for s, _, _ in self.synset_relations_where(predicate=rel, object=synset):
+                res.append(s)
+
+        return res
+
+    def hypernym_paths(self, synset, full_search=False, interlingual=False, seen=None):
+        # TODO: should we rename full_search to greedy and negate the condition below?
+        # None at the end of the path means that we ran into the loop while searching for the hyperonym
+
+        if seen is None:
+            seen = [synset.id]
+        else:
+            seen = seen.copy()
+            seen.append(synset.id)
+
+        res = []
+        for hypernym in self.hypernyms(synset=synset, interlingual=interlingual):
+            if hypernym.id in seen:
+                res.append([None])
+                continue
+
+            paths = self.hypernym_paths(synset=hypernym, full_search=full_search, interlingual=interlingual, seen=seen)
+            for path in paths:
+                res.append([hypernym] + path)
+
+            if not paths:
+                res.append([hypernym])
+
+            if not full_search:
+                break
+
+        return res
 
     def dump(self, dst):
         if not isinstance(dst, str):
