@@ -62,10 +62,12 @@ Expected output:
 ...
 ```
 
+See more usage examples in the [examples notebook](docs/examples.ipynb).
+
 
 ## Installation
 
-Note: `plwordnet` requires at Python 3.7 or newer.
+Note: `plwordnet` requires Python 3.7 or newer.
 
 ```
 pip install plwordnet
@@ -98,16 +100,20 @@ See `plwordnet/wordnet.py` for `RelationType`, `Synset` and `LexicalUnit` class 
 - `lexical_relations`: List of (subject, predicate, object) triples
 - `synset_relations`: List of (subject, predicate, object) triples
 - `relation_types`: Mapping from relation type id to object
+- `relation_by_name`: Mapping from human readable relation name to relation ids
 - `lexical_units`: Mapping from lexical unit id to unit object
+- `lexical_units_by_name`: Mapping from lexical unit name to a set of matching lexical unit ids
 - `synsets`: Mapping from synset id to object
 - `(lexical|synset)_relations_(s|o|p)`: Mapping from id of subject/object/predicate to a set of matching lexical unit/synset relation ids
-- `lexical_units_by_name`: Mapping from lexical unit name to a set of matching lexical unit ids
 
 ### `Wordnet` methods
 
 - `lemmas(value)`: Returns a list of `LexicalUnit`, where the name is equal to `value`
 - `lexical_relations_where(subject, predicate, object)`: Returns lexical relation triples, with matching subject or/and predicate or/and object. Subject, predicate and object arguments can be integer ids or `LexicalUnit` and `RelationType` objects.
 - `synset_relations_where(subject, predicate, object)`: Returns synset relation triples, with matching subject or/and predicate or/and object. Subject, predicate and object arguments can be integer ids or `Synset` and `RelationType` objects.
+- `hypernyms(synset, interlingual=False)`: Returns hypernyms of a synset (`synset` can be an integer id or a `Synset` object)
+- `hyponyms(synset, interlingual=False)`: Returns hyponyms of a synset (`synset` can be an integer id or a `Synset` object)
+- `hypernym_paths(synset, full_search=False, interlingual=False)`: Returns a hypernym path to a synset with no hypernyms (or all possible paths if `full_search=True`)
 - `dump(dst)`: Pickles the `Wordnet` object to opened file `dst` or to a new file with path `dst`.
 
 ### `RelationType` methods
