@@ -29,7 +29,7 @@ PlWordnet
 Find lexical units with name `leśny` and print all relations, where where that unit is in the subject/parent position.
 
 ```python
-for lu in wn.lemmas('leśny'):
+for lu in wn.find('leśny'):
     for s, p, o in wn.lexical_relations_where(subject=lu):
         print(p.format(s, o))
 ```
@@ -108,7 +108,7 @@ See `plwordnet/wordnet.py` for `RelationType`, `Synset` and `LexicalUnit` class 
 
 ### `Wordnet` methods
 
-- `lemmas(value)`: Returns a list of `LexicalUnit`, where the name is equal to `value`
+- `find(value)`: Returns a list of `LexicalUnit`, where the name is equal to `value`. If given a specific variant (like `leśny.1`), this method returns either the `LexicalUnit`, or `None`.
 - `lexical_relations_where(subject, predicate, object)`: Returns lexical relation triples, with matching subject or/and predicate or/and object. Subject, predicate and object arguments can be integer ids or `LexicalUnit` and `RelationType` objects.
 - `synset_relations_where(subject, predicate, object)`: Returns synset relation triples, with matching subject or/and predicate or/and object. Subject, predicate and object arguments can be integer ids or `Synset` and `RelationType` objects.
 - `hypernyms(synset, interlingual=False)`: Returns hypernyms of a synset (`synset` can be an integer id or a `Synset` object)
